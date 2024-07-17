@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Крутое название для сайта</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.0/styles/atom-one-dark.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.0/highlight.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'deep-black': '#000000',
+                        'soft-black': '#0A0A0A',
+                        'neon-blue': '#00FFFF',
+                        'neon-purple': '#FF00FF',
+                        'neon-green': '#39FF14',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        [v-cloak] { display: none; }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.5s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        .hljs { background: #000000; border-radius: 0.5rem; padding: 1rem; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #000000; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #00FFFF; border-radius: 2px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #FF00FF; }
+        .glow { text-shadow: 0 0 10px currentColor; }
+        .neon-border { box-shadow: 0 0 5px currentColor; }
+    </style>
+</head>
+<body class="bg-deep-black text-gray-300 font-sans">
+    <div id="app" v-cloak class="min-h-screen flex flex-col">
+        <header class="bg-deep-black py-6 px-6 border-b border-neon-blue">
+            <div class="container mx-auto flex justify-between items-center">
+                <div class="flex items-center">
+                    <img src="https://via.placeholder.com/50" alt="CodeMaster Logo" class="mr-4 rounded-full border-2 border-neon-blue glow">
+                    <div>
+                        <h1 class="text-4xl font-bold text-neon-blue glow">Бесконечная пауза</h1>
+                        <p class="text-sm text-neon-purple">ой да отстаньте </p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <select v-model="selectedCourse" @change="changeCourse" class="bg-deep-black text-neon-blue rounded px-3 py-2 border border-neon-blue focus:outline-none focus:ring-2 focus:ring-neon-purple neon-border">
+                        <option value="">Выберите курс</option>
+                        <option v-for="course in courses" :key="course" :value="course">[[course]]</option>
+                    </select>
+                    <input v-model="username" @change="loadProgress" placeholder="Введите имя" 
+                           class="px-3 py-2 rounded bg-deep-black text-neon-purple border border-neon-purple focus:outline-none focus:ring-2 focus:ring-neon-blue neon-border">
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-grow container mx-auto p-6 flex">
+            <aside class="w-1/4 bg-soft-black rounded-lg p-4 mr-6 h-[calc(100vh-12rem)] overflow-y-auto custom-scrollbar">
+                <h2 class="text-2xl font-semibold mb-4 text-neon-blue glow">Уроки</h2>
+                <div v-if="courseStructure" class="space-y-4">
+                    <div v-for="module in courseStructure.modules" :key="module.name" class="border-l-2 border-neon-blue pl-4">
+                        <h3 class="font-semibold text-lg mb-2 text-neon-blue cursor-pointer glow" @click="toggleModule(module)">
+                            <i class="fas fa-chevron-down mr-2" :class="{'fa-chevron-right': !module.isOpen, 'fa-chevron-down': module.isOpen}"></i>
+                            <span v-text="module.name"></span>
+                        </h3>
+                        <transition name="fade">
+                            <ul v-if="module.isOpen" class="space-y-2">
+                                <li v-for="lesson in module.lessons" :key="lesson.name">
+                                    <span class="font-medium text-neon-purple cursor-pointer" @click="toggleLesson(lesson)">
+                                        <i class="fas fa-book mr-2"></i>
+                                        <span v-text="lesson.name"></span>
+                                    </span>
+                                    <transition name="fade">
+                                        <ul v-if="lesson.isOpen" class="ml-6 mt-1 space-y-1">
+                                            <li v-for="step in lesson.steps" :key="step" 
+                                                @click="selectContent(module.name, lesson.name, step)"
+                                                class="cursor-pointer text-sm text-gray-400 hover:text-neon-green transition duration-300"
+                                                :class="{'font-semibold text-neon-green': isCurrentStep(module.name, lesson.name, step)}">
+                                                <i class="fas fa-file-alt mr-1"></i>
+                                                <span v-text="step"></span>
+                                                <i v-if="isCompleted(module.name, lesson.name, step)" class="fas fa-check-circle text-neon-green ml-2 glow"></i>
+                                            </li>
+                                        </ul>
+                                    </transition>
+                                </li>
+                            </ul>
+                        </transition>
+                    </div>
+                </div>
+            </aside>
+            <div class="w-3/4">
+                <div v-if="content" class="bg-soft-black p-6 rounded-lg neon-border border border-neon-blue">
+                    <!-- <h2 class="text-3xl font-bold mb-4 glow" v-text="currentStep"></h2> -->
+                    <div v-html="content" class="prose prose-invert max-w-none mb-8"></div>
+                    <div class="flex justify-between items-center">
+                        <button @click="prevStep" class="bg-deep-black hover:bg-soft-black text-neon-blue px-4 py-2 rounded transition duration-300 neon-border" :disabled="!hasPrevStep">
+                            <i class="fas fa-arrow-left mr-2"></i>Предыдущий
+                        </button>
+                        <button @click="markAsCompleted" class="bg-deep-black hover:bg-soft-black text-neon-green px-4 py-2 rounded transition duration-300 neon-border">
+                            <i class="fas fa-check mr-2"></i>Отметить как пройденный
+                        </button>
+                        <button @click="nextStep" class="bg-deep-black hover:bg-soft-black text-neon-blue px-4 py-2 rounded transition duration-300 neon-border" :disabled="!hasNextStep">
+                            Следующий<i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+                <div v-else class="bg-soft-black p-6 rounded-lg text-center neon-border border border-neon-purple">
+                    <h2 class="text-3xl font-bold mb-4 text-neon-purple glow">...</h2>
+                    <p class="text-neon-blue">Выбери курс, епта</p>
+                </div>
+            </div>
+        </main>
+
+        <footer class="bg-deep-black text-neon-purple py-4 border-t border-neon-purple">
+            <div class="container mx-auto text-center">
+                <p>&copy;<a href="http://www.google.com">Бесконечная пауза.</a> Все права... а забейте.</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, nextTick } = Vue
+
+        createApp({
+            delimiters: ['[[', ']]'],
+            setup() {
+                const courses = ref([])
+                const selectedCourse = ref('')
+                const username = ref('')
+                const courseStructure = ref(null)
+                const content = ref(null)
+                const currentModule = ref(null)
+                const currentLesson = ref(null)
+                const currentStep = ref(null)
+                const progress = ref({})
+
+                const flattenedSteps = computed(() => {
+                    if (!courseStructure.value) return []
+                    return courseStructure.value.modules.flatMap(module => 
+                        module.lessons.flatMap(lesson => 
+                            lesson.steps.map(step => ({
+                                module: module.name,
+                                lesson: lesson.name,
+                                step: step
+                            }))
+                        )
+                    )
+                })
+
+                const currentStepIndex = computed(() => 
+                    flattenedSteps.value.findIndex(s => 
+                        s.module === currentModule.value && 
+                        s.lesson === currentLesson.value && 
+                        s.step === currentStep.value
+                    )
+                )
+
+                const hasPrevStep = computed(() => currentStepIndex.value > 0)
+                const hasNextStep = computed(() => currentStepIndex.value < flattenedSteps.value.length - 1)
+
+                const fetchCourses = async () => {
+                    try {
+                        const response = await axios.get('/api/courses')
+                        courses.value = response.data
+                    } catch (error) {
+                        console.error("Error fetching courses:", error)
+                    }
+                }
+
+                const changeCourse = async () => {
+                    if (!selectedCourse.value) return
+                    try {
+                        const response = await axios.get(`/api/course_structure/${selectedCourse.value}`)
+                        courseStructure.value = response.data
+                        courseStructure.value.modules.forEach(module => {
+                            module.isOpen = false
+                            module.lessons.forEach(lesson => lesson.isOpen = false)
+                        })
+                        content.value = null
+                        currentModule.value = null
+                        currentLesson.value = null
+                        currentStep.value = null
+                    } catch (error) {
+                        console.error("Error changing course:", error)
+                    }
+                }
+
+                const toggleModule = (module) => {
+                    module.isOpen = !module.isOpen
+                }
+
+                const toggleLesson = (lesson) => {
+                    lesson.isOpen = !lesson.isOpen
+                }
+
+                const selectContent = async (module, lesson, step) => {
+                    currentModule.value = module
+                    currentLesson.value = lesson
+                    currentStep.value = step
+                    try {
+                        const response = await axios.get(`/api/content/${selectedCourse.value}/${module}/${lesson}/${step}`)
+                        content.value = response.data.content
+                        await nextTick()
+                        document.querySelectorAll('pre code').forEach((block) => {
+                            hljs.highlightBlock(block)
+                        })
+                    } catch (error) {
+                        console.error("Error selecting content:", error)
+                    }
+                }
+
+                const isCurrentStep = (module, lesson, step) => 
+                    currentModule.value === module && 
+                    currentLesson.value === lesson && 
+                    currentStep.value === step
+
+                const isCompleted = (module, lesson, step) => 
+                    progress.value[`${module}/${lesson}/${step}`] === true
+
+                const markAsCompleted = () => {
+                    const key = `${currentModule.value}/${currentLesson.value}/${currentStep.value}`
+                    progress.value[key] = true
+                    saveProgress()
+                }
+
+                const prevStep = () => {
+                    if (hasPrevStep.value) {
+                        const prevStep = flattenedSteps.value[currentStepIndex.value - 1]
+                        selectContent(prevStep.module, prevStep.lesson, prevStep.step)
+                    }
+                }
+
+                const nextStep = () => {
+                    if (hasNextStep.value) {
+                        const nextStep = flattenedSteps.value[currentStepIndex.value + 1]
+                        selectContent(nextStep.module, nextStep.lesson, nextStep.step)
+                    }
+                }
+
+                const saveProgress = async () => {
+                    if (!username.value) return
+                    try {
+                        await axios.post('/api/save_progress', {
+                            user: username.value,
+                            progress: progress.value
+                        })
+                    } catch (error) {
+                        console.error("Error saving progress:", error)
+                    }
+                }
+
+                const loadProgress = async () => {
+                    if (username.value) {
+                        try {
+                            const response = await axios.get(`/api/load_progress/${username.value}`)
+                            progress.value = response.data
+                        } catch (error) {
+                            console.error("Error loading progress:", error)
+                        }
+                    }
+                }
+
+                onMounted(() => {
+                    fetchCourses()
+                })
+
+                return {
+                    courses,
+                    selectedCourse,
+                    username,
+                    courseStructure,
+                    content,
+                    currentModule,
+                    currentLesson,
+                    currentStep,
+                    progress,
+                    hasPrevStep,
+                    hasNextStep,
+                    changeCourse,
+                    toggleModule,
+                    toggleLesson,
+                    selectContent,
+                    isCurrentStep,
+                    isCompleted,
+                    markAsCompleted,
+                    prevStep,
+                    nextStep,
+                    loadProgress
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
